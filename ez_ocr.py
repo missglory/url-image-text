@@ -4,27 +4,10 @@
 from PIL import Image
 from easyocr import Reader
 # import boto3
-
+import os
+import argparse
 
 reader = Reader(['ru'])
-
-# access_key = None
-# secret_access_key = None
-
-# textract_client = boto3.client('textract',
-#                                aws_access_key_id=access_key,
-#                                aws_secret_access_key = secret_access_key,
-#                                region_name='us-east-1')
-
-
-# def read_text_tesseract(image_path):
-
-#   text = pytesseract.image_to_string(Image.open(image_path), lang='eng')
-#   fp = f'{image_path}_tsrct.txt'
-#   print(fp)
-#   with open(fp, 'w+') as wb:
-#     wb.write(text)
-#   return text
 
 def read_text_easyocr(image_path):
   text = ''
@@ -34,25 +17,8 @@ def read_text_easyocr(image_path):
     text = text + result[1] +  ' '
 
   text = text[:-1]
-  fp = f'{image_path}_ocr.txt'
-  print(fp)
-  with open(fp, 'w+') as wb:
-    wb.write(text)
   return text
 
-# def read_text_textract(image_path):
-
-#   with open(image_path, 'rb') as im:
-#     response = textract_client.detect_document_text(Document={'Bytes':im.read()})
-
-#   text = ''
-#   for item in response['Blocks']:
-#     if item['BlockType'] == 'LINE':
-#       text = text + item['Text'] + ' '
-
-#   text = text[:-1]
-
-#   return text
 ### 5. Compare performances ###
 
 import os
@@ -73,22 +39,22 @@ def jaccard_similarity(sentence1, sentence2):
     return similarity
 
 
-score_tesseract = 0
-score_easyocr = 0
-score_textract = 0
-path = '/home/mg/aider/url-img-text/traces/'
-for image_path_ in os.listdir(path):
-  if not '.jpg' in image_path_[-5:]:
-    continue
-  # print(image_path_)
-  image_path = os.path.join(path, image_path_)
-
-  gt = image_path[:-4].replace('_', ' ').lower()
-
-  txt = read_text_easyocr(image_path=image_path)
-  print(txt)
+def traverse_folder_recursively(input_folder, output_folder):
+  for root, dirs, files in os.walk(input_folder):
+    for file in files:
+      if file.endswith('.jpg'):
+        image_path = os.path.join(root, file)
+        text = read_text_easyocr(image_path)
+        relative_path = os.path.relpath(root, input_folder)
+        output_path = os.path.join(output_folder, relative_path)
+        os.makedirs(output_path, exist_ok=True)
+        with open(os.path.join(output_path, file[:-4] + '.txt'), 'w') as f:
+          f.write(text)
 
 
-# print('score tesseract:', score_tesseract / 100)
-# print('score_easyocr:', score_easyocr / 100)
-# print('score_textract:', score_textract / 100)
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input_folder', help='Path to the input folder')
+  parser.add_argument('--output_folder', help='Path to the output folder')
+  args = parser.parse_args()
+  traverse_folder_recursively(args.input_folder, args.output_folder)
