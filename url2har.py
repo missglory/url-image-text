@@ -3,22 +3,26 @@ import asyncio
 import sys
 import json
 import os
+import time
 
-async def saving_image(browser, url, har_filename):
+async def saving_image(browser, url, har_filename, wait_to_close):
     context = await browser.new_context(record_har_mode='full', record_har_path=har_filename)
     page = await context.new_page()
 
     # visit actual url with playwright
     await page.goto(url)
-    # time.sleep(20)
+    time.sleep(wait_to_close)
     await context.close()
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python url2har.py <input_folder_path>")
+    if len(sys.argv) < 3:
+        print("Usage: python url2har.py <input_folder_path> <output_folder_path>")
         sys.exit(1)
 
     input_folder_path = sys.argv[1]
+    output_folder_path = sys.argv[2]
+    wait_to_close = 0
+    if len(sys.argv) > 3: wait_to_close = int(sys.argv[3])
 
     async def main():
         async with async_playwright() as playwright:
@@ -32,15 +36,12 @@ if __name__ == '__main__':
                         data = json.load(f)
                         links = data['links']
 
-                    subfolder_name = os.path.splitext(filename)[0]
-                    subfolder_path = os.path.join("traces", subfolder_name)
-                    os.makedirs(subfolder_path, exist_ok=True)
-
                     for link in links:
-                        filename = link.split('/')[-1]
-                        if len(filename) > 50: filename = filename[:100]
-                        har_filename = os.path.join(subfolder_path, f"{filename}.har")
-                        await saving_image(browser, link, har_filename)
+                        # filename = link.split('/')[0]
+                        # if len(filename) > 50: filename = filename[:50
+                        link_short = link[:min(50, len(link))]
+                        har_filename = f"{output_folder_path}/{filename}/{link_short}/{filename}.har"
+                        await saving_image(browser, link, har_filename, wait_to_close)
             await browser.close()
 
     asyncio.run(main())
