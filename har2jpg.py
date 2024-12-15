@@ -18,11 +18,16 @@ def extract_jpg_responses(input_folder_path, output_folder_path):
                         output_subfolder_path = os.path.join(output_folder_path, rel_path)
                         os.makedirs(output_subfolder_path, exist_ok=True)
                         
+                        accepted_formats = ['jpeg', 'png', 'webp']
                         for entry in har_data['log']['entries']:
                             response = entry['response']
                             
+                            resp_format = None
+                            for format in accepted_formats:
+                                if response['content']['mimeType'] == f'image/{format}':
+                                    resp_format = format
                             # Check if the response contains image/jpeg content
-                            if 'content' in response and 'mimeType' in response['content'] and response['content']['mimeType'] == 'image/jpeg':
+                            if 'content' in response and 'mimeType' in response['content'] and resp_format is not None:
                                 # Extract the content. Note: The content is usually encoded.
                                 content = response['content']['text']
                                 
@@ -32,7 +37,7 @@ def extract_jpg_responses(input_folder_path, output_folder_path):
                                 # Get the URL from the entry
                                 url = entry['request']['url']
                                 # Replace special characters in the URL to make it a valid filename
-                                jpg_filename = url.replace('/', '_').replace(':', '_') + '.jpg'
+                                jpg_filename = url.replace('/', '_').replace(':', '_') + '.' + resp_format
                                 jpg_file_path = os.path.join(output_subfolder_path, jpg_filename)
                                 
                                 # Save the decoded content to a JPG file
