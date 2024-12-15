@@ -4,13 +4,17 @@ import sys
 import os
 from argparse import ArgumentParser
 
-def extract_jpg_responses(folder_path):
+def extract_jpg_responses(input_folder_path, output_folder_path):
     try:
-        for filename in os.listdir(folder_path):
+        for filename in os.listdir(input_folder_path):
             if filename.endswith(".har"):
-                har_file_path = os.path.join(folder_path, filename)
+                har_file_path = os.path.join(input_folder_path, filename)
                 with open(har_file_path, 'r') as har_file:
                     har_data = json.load(har_file)
+                    
+                    # Create subfolder corresponding to HAR filename
+                    har_subfolder_path = os.path.join(output_folder_path, filename.replace('.har', ''))
+                    os.makedirs(har_subfolder_path, exist_ok=True)
                     
                     for entry in har_data['log']['entries']:
                         response = entry['response']
@@ -27,7 +31,7 @@ def extract_jpg_responses(folder_path):
                             url = entry['request']['url']
                             # Replace special characters in the URL to make it a valid filename
                             jpg_filename = url.replace('/', '_').replace(':', '_') + '.jpg'
-                            jpg_file_path = os.path.join(folder_path, jpg_filename)
+                            jpg_file_path = os.path.join(har_subfolder_path, jpg_filename)
                             
                             # Save the decoded content to a JPG file
                             with open(jpg_file_path, 'wb') as jpg_file:
@@ -36,7 +40,7 @@ def extract_jpg_responses(folder_path):
                             print(f"JPG response data saved to {jpg_file_path}")
                             
     except FileNotFoundError:
-        print(f"Folder {folder_path} not found.")
+        print(f"Folder {input_folder_path} not found.")
     except json.JSONDecodeError as e:
         print(f"Failed to parse JSON: {e}")
     except Exception as e:
@@ -44,7 +48,8 @@ def extract_jpg_responses(folder_path):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Extract JPG response data from HAR files in a folder and save it to JPG files.")
-    parser.add_argument("folder_path", help="Path to the folder containing HAR files")
+    parser.add_argument("input_folder_path", help="Path to the folder containing HAR files")
+    parser.add_argument("output_folder_path", help="Path to the output folder where JPG files will be saved")
     args = parser.parse_args()
     
-    extract_jpg_responses(args.folder_path)
+    extract_jpg_responses(args.input_folder_path, args.output_folder_path)
