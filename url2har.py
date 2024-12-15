@@ -10,7 +10,7 @@ async def saving_image(browser, url, har_filename):
 
     # visit actual url with playwright
     await page.goto(url)
-    time.sleep(20)
+    # time.sleep(20)
     await context.close()
 
 if __name__ == '__main__':
