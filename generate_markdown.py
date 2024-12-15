@@ -20,7 +20,7 @@ def generate_markdown(txt_folder, img_folder, output_file='assets.md'):
             elif os.path.isfile(txt_item_path) and txt_item.endswith('.txt'):
                 with open(txt_item_path, 'r') as file:
                     markdown_content += f'\n{file.read()}\n'
-            elif os.path.isfile(img_item_path) and (img_item.endswith('.jpg') or img_item.endswith('.png')):
+            if os.path.isfile(img_item_path) and (img_item.endswith('.jpg') or img_item.endswith('.png')):
                 markdown_content += f'\n![{img_item}]({os.path.relpath(img_item_path, os.path.dirname(output_file))})\n'
         
         markdown_content += '\n'
