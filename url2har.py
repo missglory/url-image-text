@@ -35,13 +35,22 @@ if __name__ == '__main__':
                     with open(json_filename, 'r') as f:
                         data = json.load(f)
                         links = data['links']
-
+                        w8 = wait_to_close
+                        if 'wait' in data:
+                            w8 = max(wait_to_close, data['wait'])
+                        repeats = 1
+                        if 'repeats' in data:
+                            repeats = data['repeats']
                     for link in links:
                         # filename = link.split('/')[0]
                         # if len(filename) > 50: filename = filename[:50
                         link_short = link[:min(50, len(link))]
-                        har_filename = f"{output_folder_path}/{filename}/{link_short}/{filename}.har"
-                        await saving_image(browser, link, har_filename, wait_to_close)
+                        for rep in range(repeats):
+                            _suff = ""
+                            if rep > 1:
+                                _suff = f'_rep{rep}'
+                            har_filename = f"{output_folder_path}/{filename}/{link_short}/{filename}{_suff}.har"
+                            await saving_image(browser, link, har_filename, w8)
             await browser.close()
 
     asyncio.run(main())
