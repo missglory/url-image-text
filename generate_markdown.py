@@ -8,8 +8,8 @@ def generate_markdown(txt_folder, img_folder, output_file='assets.md'):
     # Function to traverse folders recursively and generate markdown
     def traverse_folders(folder_path, level=1):
         nonlocal markdown_content
-        folder_name = os.path.basename(folder_path)
-        markdown_content += f'{"#" * level} {folder_name}\n'
+        # folder_name = os.path.basename(folder_path)
+        # markdown_content += f'{"#" * level} {folder_name}\n'
         
         for item in os.listdir(folder_path):
             item_path = os.path.join(folder_path, item)
