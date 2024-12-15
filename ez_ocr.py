@@ -7,12 +7,12 @@ from easyocr import Reader
 import os
 import argparse
 
-reader = Reader(['ru'])
+reader = Reader(['en'])
 
 def read_text_easyocr(image_path):
   text = ''
-  results = reader.readtext(Image.open(image_path))
-  print(results)
+  results = reader.readtext(image_path)
+  # print(results)
   for result in results:
     text = text + result[1] +  ' '
 
@@ -38,12 +38,16 @@ def jaccard_similarity(sentence1, sentence2):
 
     return similarity
 
-
+formats = ['jpg']
 def traverse_folder_recursively(input_folder, output_folder):
   for root, dirs, files in os.walk(input_folder):
     for file in files:
-      if file.endswith('.jpg'):
-        image_path = os.path.join(root, file)
+      if file.split('.')[-1] in formats:
+        image_path = os.path.join(os.path.abspath(root), file)
+        # print(root, dirs, files)
+
+        print(image_path)
+
         text = read_text_easyocr(image_path)
         relative_path = os.path.relpath(root, input_folder)
         output_path = os.path.join(output_folder, relative_path)
