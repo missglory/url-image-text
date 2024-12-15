@@ -1,4 +1,5 @@
 import sys
+import os
 import re
 import json
 
@@ -7,7 +8,7 @@ def find_urls_in_text(text):
     urls = re.findall(url_pattern, text)
     return urls
 
-def find_urls(filename):
+def find_urls_in_file(filename):
     try:
         with open(filename, 'r') as file:
             text = file.read()
@@ -20,15 +21,22 @@ def save_urls_to_json(urls, filename):
     result = {
         "links": urls
     }
-    with open('result.json', 'w') as file:
+    output_folder = sys.argv[2]
+    output_filename = os.path.basename(filename) + '.json'
+    output_path = os.path.join(output_folder, output_filename)
+    with open(output_path, 'w') as file:
         json.dump(result, file)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python url_finder.py <filename>")
+    if len(sys.argv) != 3:
+        print("Usage: python url_finder.py <input_folder> <output_folder>")
     else:
-        filename = sys.argv[1]
-        urls = find_urls(filename)
-        for url in urls:
-            print(url)
-        save_urls_to_json(urls, filename)
+        input_folder = sys.argv[1]
+        output_folder = sys.argv[2]
+        for filename in os.listdir(input_folder):
+            if filename.endswith(".txt"):
+                filepath = os.path.join(input_folder, filename)
+                urls = find_urls_in_file(filepath)
+                for url in urls:
+                    print(url)
+                save_urls_to_json(urls, filename)
