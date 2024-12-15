@@ -44,12 +44,12 @@ if __name__ == '__main__':
                     for link in links:
                         # filename = link.split('/')[0]
                         # if len(filename) > 50: filename = filename[:50
-                        link_short = link[:min(50, len(link))]
+                        link_short = link[:min(50, len(link))].replace('/', '_').replace('?', '_')
                         for rep in range(repeats):
                             _suff = ""
                             if rep > 1:
                                 _suff = f'_rep{rep}'
-                            har_filename = f"{output_folder_path}/{filename}/{link_short}/{filename}{_suff}.har"
+                            har_filename = f"{output_folder_path}/{filename}/{link_short}{_suff}.har"
                             await saving_image(browser, link, har_filename, w8)
             await browser.close()
 
