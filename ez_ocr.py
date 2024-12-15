@@ -7,9 +7,8 @@ from easyocr import Reader
 import os
 import argparse
 
-reader = Reader(['en'])
-
-def read_text_easyocr(image_path):
+def read_text_easyocr(image_path, language):
+  reader = Reader([language])
   text = ''
   results = reader.readtext(image_path)
   # print(results)
@@ -39,7 +38,7 @@ def jaccard_similarity(sentence1, sentence2):
     return similarity
 
 formats = ['jpg']
-def traverse_folder_recursively(input_folder, output_folder):
+def traverse_folder_recursively(input_folder, output_folder, language):
   for root, dirs, files in os.walk(input_folder):
     for file in files:
       if file.split('.')[-1] in formats:
@@ -48,7 +47,7 @@ def traverse_folder_recursively(input_folder, output_folder):
 
         print(image_path)
 
-        text = read_text_easyocr(image_path)
+        text = read_text_easyocr(image_path, language)
         relative_path = os.path.relpath(root, input_folder)
         output_path = os.path.join(output_folder, relative_path)
         os.makedirs(output_path, exist_ok=True)
@@ -60,5 +59,6 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_folder', help='Path to the input folder')
   parser.add_argument('--output_folder', help='Path to the output folder')
+  parser.add_argument('--language', default='en', help='Language for OCR')
   args = parser.parse_args()
-  traverse_folder_recursively(args.input_folder, args.output_folder)
+  traverse_folder_recursively(args.input_folder, args.output_folder, args.language)
