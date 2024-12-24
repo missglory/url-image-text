@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from fastapi import FastAPI
+from pydantic import BaseModel
 
 # Create a database engine (in this case, SQLite)
 engine = create_engine('sqlite:///example.db')
@@ -40,6 +42,16 @@ class RawHtml(Base):
 Base.metadata.create_all(engine)
 
 
+class HarFileModel(BaseModel):
+    url: str
+    har_data: str
+
+class RawHtmlModel(BaseModel):
+    url: str
+    html_content: str
+
+app = FastAPI()
+
 # Example usage
 if __name__ == '__main__':
     # To start, create a new session
@@ -64,3 +76,15 @@ if __name__ == '__main__':
     for entry in raw_html_entries:
         print(entry)
 
+
+@app.get("/har")
+def get_har():
+    session = Session()
+    har_entries = session.query(HarFile).all()
+    return [{"url": entry.url, "har_data": entry.har_data} for entry in har_entries]
+
+@app.get("/html")
+def get_html():
+    session = Session()
+    raw_html_entries = session.query(RawHtml).all()
+    return [{"url": entry.url, "html_content": entry.html_content} for entry in raw_html_entries]
