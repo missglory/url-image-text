@@ -58,6 +58,15 @@ def get_har():
     return [{"url": entry.url, "har_data": entry.har_data} for entry in har_entries]
 
 
+@app.post("/har")
+def insert_har(har_file: HarFileModel):
+    session = Session()
+    new_har_entry = HarFile(url=har_file.url, har_data=har_file.har_data)
+    session.add(new_har_entry)
+    session.commit()
+    return {"url": new_har_entry.url, "har_data": new_har_entry.har_data}
+
+
 @app.get("/html")
 def get_html():
     session = Session()
@@ -66,3 +75,12 @@ def get_html():
         {"url": entry.url, "html_content": entry.html_content}
         for entry in raw_html_entries
     ]
+
+
+@app.post("/html")
+def insert_html(raw_html: RawHtmlModel):
+    session = Session()
+    new_raw_html_entry = RawHtml(url=raw_html.url, html_content=raw_html.html_content)
+    session.add(new_raw_html_entry)
+    session.commit()
+    return {"url": new_raw_html_entry.url, "html_content": new_raw_html_entry.html_content}
