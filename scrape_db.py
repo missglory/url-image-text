@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, String, Text
+from sqlalchemy import create_engine, Column, String, Text, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -9,81 +9,102 @@ Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
-class HarFile(Base):
-    """Table for storing HAR files."""
+class Request(Base):
+    """Table for storing requests."""
 
-    __tablename__ = "har_files"
+    __tablename__ = "requests"
 
-    # Using URL as the primary key (id)
-    url = Column(String, primary_key=True)
-    har_data = Column(Text)
+    id = Column(Integer, primary_key=True)
+    url = Column(String)
+    method = Column(String)
+    headers = Column(Text)
+    data = Column(Text)
 
-    def __repr__(self):
-        return f"HarFile(url='{self.url}', har_data='{self.har_data[:100]}...)"
-
-
-class RawHtml(Base):
-    """Table for storing raw HTML."""
-
-    __tablename__ = "raw_html"
-
-    # Using URL as the primary key (id)
-    url = Column(String, primary_key=True)
-    html_content = Column(Text)
-
-    def __repr__(self):
-        return f"RawHtml(url='{self.url}', html_content='{self.html_content[:100]}...)"
+    responses = relationship("Response", back_populates="request")
 
 
-Base.metadata.create_all(engine)
+class Response(Base):
+    """Table for storing responses."""
+
+    __tablename__ = "responses"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey('requests.id'))
+    status_code = Column(Integer)
+    headers = Column(Text)
+    content = Column(Text)
+
+    request = relationship("Request", back_populates="responses")
 
 
-class HarFileModel(BaseModel):
+class RequestModel(BaseModel):
     url: str
-    har_data: str
+    method: str
+    headers: str
+    data: str
 
 
-class RawHtmlModel(BaseModel):
-    url: str
-    html_content: str
+class ResponseModel(BaseModel):
+    status_code: int
+    headers: str
+    content: str
 
 
 app = FastAPI()
 
 
-@app.get("/har")
-def get_har():
+@app.get("/requests")
+def get_requests():
     session = Session()
-    har_entries = session.query(HarFile).all()
-    return [{"url": entry.url, "har_data": entry.har_data} for entry in har_entries]
-
-
-@app.post("/har")
-def insert_har(har_file: HarFileModel):
-    session = Session()
-    new_har_entry = HarFile(url=har_file.url, har_data=har_file.har_data)
-    session.add(new_har_entry)
-    session.commit()
-    return {"url": new_har_entry.url, "har_data": new_har_entry.har_data}
-
-
-@app.get("/html")
-def get_html():
-    session = Session()
-    raw_html_entries = session.query(RawHtml).all()
+    request_entries = session.query(Request).all()
     return [
-        {"url": entry.url, "html_content": entry.html_content}
-        for entry in raw_html_entries
+        {
+            "id": entry.id,
+            "url": entry.url,
+            "method": entry.method,
+            "headers": entry.headers,
+            "data": entry.data,
+        }
+        for entry in request_entries
     ]
 
 
-@app.post("/html")
-def insert_html(raw_html: RawHtmlModel):
+@app.post("/requests")
+def insert_request(request: RequestModel):
     session = Session()
-    new_raw_html_entry = RawHtml(url=raw_html.url, html_content=raw_html.html_content)
-    session.add(new_raw_html_entry)
+    new_request_entry = Request(
+        url=request.url, method=request.method, headers=request.headers, data=request.data
+    )
+    session.add(new_request_entry)
     session.commit()
-    return {"url": new_raw_html_entry.url, "html_content": new_raw_html_entry.html_content}
+    return {"id": new_request_entry.id, "url": new_request_entry.url}
+
+
+@app.get("/responses")
+def get_responses():
+    session = Session()
+    response_entries = session.query(Response).all()
+    return [
+        {
+            "id": entry.id,
+            "request_id": entry.request_id,
+            "status_code": entry.status_code,
+            "headers": entry.headers,
+            "content": entry.content,
+        }
+        for entry in response_entries
+    ]
+
+
+@app.post("/responses")
+def insert_response(response: ResponseModel, request_id: int):
+    session = Session()
+    new_response_entry = Response(
+        request_id=request_id, status_code=response.status_code, headers=response.headers, content=response.content
+    )
+    session.add(new_response_entry)
+    session.commit()
+    return {"id": new_response_entry.id, "request_id": new_response_entry.request_id}
 
 
 # Instructions on how to run the FastAPI server and use curl commands
@@ -93,15 +114,15 @@ uvicorn scrape_db:app --host 0.0.0.0 --port 8000
 
 You can then access the API at http://localhost:8000
 
-To get all HAR entries, use the following curl command:
-curl http://localhost:8000/har
+To get all request entries, use the following curl command:
+curl http://localhost:8000/requests
 
-To insert a new HAR entry, use the following curl command:
-curl -X POST -H "Content-Type: application/json" -d '{"url": "https://example.com", "har_data": "example_har_data"}' http://localhost:8000/har
+To insert a new request entry, use the following curl command:
+curl -X POST -H "Content-Type: application/json" -d '{"url": "https://example.com", "method": "GET", "headers": "{}", "data": ""}' http://localhost:8000/requests
 
-To get all raw HTML entries, use the following curl command:
-curl http://localhost:8000/html
+To get all response entries, use the following curl command:
+curl http://localhost:8000/responses
 
-To insert a new raw HTML entry, use the following curl command:
-curl -X POST -H "Content-Type: application/json" -d '{"url": "https://example.com", "html_content": "example_html_content"}' http://localhost:8000/html
+To insert a new response entry, use the following curl command:
+curl -X POST -H "Content-Type: application/json" -d '{"status_code": 200, "headers": "{}", "content": ""}' http://localhost:8000/responses
 """
