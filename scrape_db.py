@@ -1,10 +1,16 @@
-from sqlalchemy import create_engine, Column, Integer, String
+from datetime import datetime
+
+from requests import request
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from fastapi import FastAPI
 import json
+from pydantic import BaseModel
+from typing import Optional
+import re
 
-engine = create_engine("sqlite:///scrape.db")
+engine = create_engine("postgresql://XVdIBT:HciJiV@localhost:5436/db")
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
@@ -29,6 +35,28 @@ class Response(Base):
     content_size = Column(Integer)
     content_compression = Column(Integer)
     time = Column(Integer)
+
+
+class Url(Base):
+    __tablename__ = "urls"
+    id = Column(Integer, primary_key=True)
+    source = Column(String)  # e.g. 'request' or 'response'
+    response_id = Column(Integer, ForeignKey('responses.id'))
+    value = Column(String)
+    # response = relationship("Response", backref="urls")
+    
+class Task(Base):
+    __tablename__ = "tasks"
+    id = Column(Integer, primary_key=True)
+    source = Column(String)
+    url_id = Column(Integer, ForeignKey('urls.id'))
+    cookies = Column(String)
+    request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
+    time = Column(DateTime)
+
+    # Establish relationships with other models
+    url = relationship("Url", backref="tasks")
+    request = relationship("Request", backref="tasks")
 
 
 Base.metadata.drop_all(engine)
@@ -94,6 +122,45 @@ def get_responses():
         for response in responses
     ]
 
+@app.get("/tasks")
+def get_tasks():
+    session = Session()
+    tasks = session.query(Task).all()
+    return [
+        {
+            "id": task.id,
+            "source": task.source,
+            "url_id": task.url_id,
+            "cookies": task.cookies,
+            "request_id": task.request_id,
+            "time": task.time,
+        }
+        for task in tasks
+    ]
+    
+class CreateTaskRequest(BaseModel):
+    url_id: int
+
+@app.post("/tasks")
+def create_task(task_request: CreateTaskRequest):
+    session = Session()
+    new_task = Task(
+        source="scrape",
+        url_id=task_request.url_id,
+        cookies="{}",
+        request_id=None,
+        time=datetime.now(),
+    )
+    session.add(new_task)
+    session.commit()
+    return {
+        "id": new_task.id,
+        "source": new_task.source,
+        "url_id": new_task.url_id,
+        "cookies": new_task.cookies,
+        "request_id": new_task.request_id,
+        "time": new_task.time,
+    }
 
 @app.post("/responses")
 def insert_response(response: dict, request_id: int):
@@ -121,6 +188,85 @@ def insert_response(response: dict, request_id: int):
         "content_compression": new_response.content_compression,
         "time": new_response.time,
     }
+
+
+class UrlBase(BaseModel):
+    source: str
+    response_id: Optional[int]
+    value: str
+
+@app.get("/urls")
+async def get_urls():
+    session = Session()
+    urls = session.query(Url).all()
+    return [
+        {
+            "id": url.id,
+            "source": url.source,
+            "response_id": url.response_id,
+            "value": url.value
+        }
+        for url in urls
+    ]
+
+# @app.post("/urls")
+# async def create_url(url: UrlBase):
+@app.get("/responses/{response_id}")
+async def get_response_content(response_id: int):
+    session = Session()
+    new_url = Url(
+        source=url.source,
+        response_id=url.response_id,
+        value=url.value
+    )
+    session.add(new_url)
+    session.commit()
+    response = session.query(Response).filter_by(id=response_id).first()
+    return {
+        "id": new_url.id,
+        "source": new_url.source,
+        "response_id": new_url.response_id,
+        "value": new_url.value,
+        "id": response.id,
+        "content_text": response.content_text
+    }
+
+class ExtractUrlsRequest(BaseModel):
+    response_id: int
+
+@app.post("/extract_urls")
+async def extract_urls(extract_request: ExtractUrlsRequest):
+    session = Session()
+    response = session.query(Response).filter_by(id=extract_request.response_id).first()
+    if response:
+        content_text = response.content_text
+        # Implement logic to extract URLs from the content text
+        # For this example, assume we have a function called 'extract_urls_from_text'
+        urls = extract_urls_from_text(content_text)
+        
+        new_urls = []
+        for url in urls:
+            new_url = Url(
+                source='response',
+                response_id=extract_request.response_id,
+                value=url
+            )
+            session.add(new_url)
+            new_urls.append({
+                "id": new_url.id,
+                "source": new_url.source,
+                "response_id": new_url.response_id,
+                "value": new_url.value
+            })
+        session.commit()
+        return new_urls
+    else:
+        return {"error": "Response not found"}
+
+def extract_urls_from_text(text: str):
+    url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    urls = re.findall(url_pattern, text)
+    return urls
 
 
 @app.get("/schema")
