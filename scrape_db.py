@@ -9,6 +9,8 @@ import json
 from pydantic import BaseModel
 from typing import Optional
 import re
+from sqlalchemy.sql import text
+
 
 engine = create_engine("postgresql://XVdIBT:HciJiV@localhost:5436/db")
 Session = sessionmaker(bind=engine)
@@ -49,7 +51,7 @@ class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True)
     source = Column(String)
-    url_id = Column(Integer, ForeignKey('urls.id'))
+    url_id = Column(Integer, ForeignKey('urls.id'), nullable=True)
     cookies = Column(String)
     request_id = Column(Integer, ForeignKey('requests.id'), nullable=True)
     time = Column(DateTime)
@@ -59,7 +61,7 @@ class Task(Base):
     request = relationship("Request", backref="tasks")
 
 
-Base.metadata.drop_all(engine)
+# Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
 
 app = FastAPI()
@@ -145,7 +147,7 @@ class CreateTaskRequest(BaseModel):
 def create_task(task_request: CreateTaskRequest):
     session = Session()
     new_task = Task(
-        source="scrape",
+        source="url",
         url_id=task_request.url_id,
         cookies="{}",
         request_id=None,
@@ -196,9 +198,13 @@ class UrlBase(BaseModel):
     value: str
 
 @app.get("/urls")
-async def get_urls():
+async def get_urls(url_value_filter: Optional[str] = None):
     session = Session()
-    urls = session.query(Url).all()
+    if url_value_filter:
+        urls = session.query(Url).filter(text('value ~ :reg')).params(reg=url_value_filter).all()
+    else:
+        urls = session.query(Url).all()
+
     return [
         {
             "id": url.id,
