@@ -84,17 +84,31 @@ def get_requests():
     ]
 
 
+class NewRequest(BaseModel):
+    url: str
+    method: str
+    headers: dict
+    data: dict
+    task_id: Optional[int]
+
 @app.post("/requests")
-def insert_request(request: dict):
+def insert_request(request: NewRequest):
     session = Session()
     new_request = Request(
-        url=request["url"],
-        method=request["method"],
-        headers=json.dumps(request["headers"]),
-        data=json.dumps(request["data"]),
+        url=request.url,
+        method=request.method,
+        headers=json.dumps(request.headers),
+        data=json.dumps(request.data),
     )
     session.add(new_request)
     session.commit()
+
+    if request.task_id:
+        task = session.query(Task).filter_by(id=request.task_id).first()
+        if task:
+            task.request_id = new_request.id
+            session.commit()
+
     return {
         "id": new_request.id,
         "url": new_request.url,
@@ -125,7 +139,7 @@ def get_responses():
     ]
 
 @app.get("/tasks")
-def get_tasks():
+async  def get_tasks():
     session = Session()
     tasks = session.query(Task).all()
     return [
@@ -163,6 +177,15 @@ def create_task(task_request: CreateTaskRequest):
         "request_id": new_task.request_id,
         "time": new_task.time,
     }
+
+@app.delete("/tasks")
+def delete_all_tasks():
+    session = Session()
+    tasks = session.query(Task).all()
+    for task in tasks:
+        session.delete(task)
+    session.commit()
+    return {"message": "All tasks have been deleted"}
 
 @app.post("/responses")
 def insert_response(response: dict, request_id: int):

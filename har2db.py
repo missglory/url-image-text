@@ -58,10 +58,12 @@ def extract_request_data(har_data):
     
     return requests_data
 
-def send_request_to_db(_data, base_url='http://localhost:8000'):
+def send_request_to_db(_data, base_url='http://localhost:8000', task_id=None):
     """Sends a request to the database via FastAPI endpoint."""
     for d in _data:
         req_data = d['request']
+        if task_id is not None:
+            req_data["task_id"] = task_id
         resp_data = d['response']
         response = requests.post(f"{base_url}/requests", json=req_data)
         if response.status_code == 200:
@@ -83,14 +85,15 @@ def send_request_to_db(_data, base_url='http://localhost:8000'):
             print(f"Failed to add request. Status code: {response.status_code}")
 
 def main():
-    parser = argparse.ArgumentParser(description='Load HAR file and send requests to database')
-    parser.add_argument('har_file_path', help='Path to the HAR file')
+    parser = argparse.ArgumentParser(description='Process HAR file and send data to database.')
+    parser.add_argument('file_path', type=str, help='Path to the HAR file')
+    parser.add_argument('--base_url', default='http://localhost:8000', type=str, help='Base URL of the FastAPI server')
+    parser.add_argument('--task_id', default=None, type=int, help='Task ID for /requests endpoint')
     args = parser.parse_args()
     
-    har_data = load_har_file(args.har_file_path)
-    if har_data:
-        _data = extract_request_data(har_data)
-        send_request_to_db(_data)
-
+    har_data = load_har_file(args.file_path)
+    if har_data is not None:
+        requests_data = extract_request_data(har_data)
+        send_request_to_db(requests_data, base_url=args.base_url, task_id=args.task_id)
 if __name__ == "__main__":
     main()
